@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d1017">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Lossless">
+<meta name="description" content="Tìm và nghe nhạc lossless (FLAC) hợp pháp từ Internet Archive với bộ xử lý âm thanh EQ 10 băng.">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+<title>Lossless Player – Nghe nhạc lossless trực tuyến</title>
+<style>
+:root{
+  --bg:#0d1017;--panel:#151a23;--panel2:#1b2230;--line:#263043;--txt:#e6ebf3;--mut:#8a96ab;
+  --acc:#3ddc97;--acc2:#4aa8ff;--warn:#ffb547;--bad:#ff5d6c;--r:12px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",sans-serif}
+button,input,select{font:inherit;color:inherit}
+button{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer;transition:.15s}
+button:hover{border-color:var(--acc2)}
+button.on{background:var(--acc);color:#05140d;border-color:var(--acc);font-weight:600}
+button.pri{background:var(--acc2);color:#04121f;border-color:var(--acc2);font-weight:600}
+button.icon{width:40px;height:40px;padding:0;border-radius:50%;font-size:16px}
+button.big{width:52px;height:52px;font-size:20px;background:var(--acc);color:#05140d;border:none}
+input[type=text],select{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;outline:none}
+input[type=text]:focus,select:focus{border-color:var(--acc2)}
+input[type=range]{accent-color:var(--acc);width:100%}
+header{display:flex;align-items:center;gap:12px;padding:calc(12px + env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) 12px max(18px, env(safe-area-inset-left));border-bottom:1px solid var(--line);background:#0f131b;position:sticky;top:0;z-index:5}
+header h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.2px}
+header h1 span{color:var(--acc)}
+header .badge{margin-left:auto;font-size:12px;color:var(--mut)}
+main{display:grid;grid-template-columns:minmax(300px,1.05fr) minmax(320px,1.2fr);gap:14px;padding:14px max(18px, env(safe-area-inset-right)) calc(150px + env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left))}
+@media (max-width:900px){main{grid-template-columns:1fr;padding:10px max(10px, env(safe-area-inset-right)) calc(200px + env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left))}input[type=text],select{font-size:16px}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.card h2{font-size:15px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.card h2 small{color:var(--mut);font-weight:400}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.grow{flex:1;min-width:0}
+.mut{color:var(--mut)}
+.list{max-height:420px;overflow:auto;margin-top:10px;border-top:1px solid var(--line)}
+.item{display:flex;gap:10px;align-items:center;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer}
+.item:hover{background:var(--panel2)}
+.item img{width:46px;height:46px;border-radius:6px;object-fit:cover;background:#222;flex:none}
+.item .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .s{font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .act{display:flex;gap:4px;flex:none}
+.item .act button{padding:4px 8px;font-size:12px}
+.item.playing{background:#123024}
+.item.playing .t{color:var(--acc)}
+.tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:5px;background:#203047;color:#9cc7ff;margin-right:4px}
+.tag.g{background:#143a2a;color:#7ff0bc}
+#album{display:none}
+#albumHead{display:flex;gap:12px;align-items:center}
+#albumHead img{width:84px;height:84px;border-radius:8px;object-fit:cover;background:#222}
+.tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.eq{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;align-items:end;height:190px;margin:8px 0 4px}
+.band{display:flex;flex-direction:column;align-items:center;height:100%;gap:4px}
+.band input{writing-mode:vertical-lr;direction:rtl;width:26px;flex:1;min-height:110px}
+.band .v{font-size:11px;color:var(--acc)}
+.band .f{font-size:11px;color:var(--mut)}
+.ctl{display:grid;grid-template-columns:118px 1fr 58px;gap:8px;align-items:center;margin:7px 0}
+.ctl label{color:var(--mut);font-size:13px}
+.ctl output{font-size:12px;text-align:right;color:var(--acc)}
+canvas#viz{width:100%;height:170px;display:block;background:#0a0d13;border-radius:10px;border:1px solid var(--line)}
+.meter{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--mut);margin-top:6px}
+.clip{width:10px;height:10px;border-radius:50%;background:#333}
+.clip.hot{background:var(--bad);box-shadow:0 0 8px var(--bad)}
+#player{position:fixed;left:0;right:0;bottom:0;background:#0f131bf2;backdrop-filter:blur(8px);border-top:1px solid var(--line);padding:10px max(18px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));display:grid;grid-template-columns:minmax(200px,1fr) auto minmax(200px,1fr);gap:16px;align-items:center;z-index:10}
+@media (max-width:900px){#player{grid-template-columns:1fr;gap:8px;padding:8px max(10px, env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left))}}
+@media (max-width:600px){header .tagline{display:none}header h1{white-space:nowrap}}
+.bgnote{font-size:12px;color:var(--warn)}
+html{-webkit-text-size-adjust:100%}
+button{touch-action:manipulation}
+#nowArt{width:58px;height:58px;border-radius:8px;object-fit:cover;background:#222;flex:none}
+#nowTitle{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#nowSub{font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#nowFmt{font-size:11px;margin-top:3px}
+.ctr{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:min(520px,92vw)}
+.seek{display:flex;gap:8px;align-items:center;width:100%;font-size:12px;color:var(--mut)}
+.seek input{flex:1}
+.toast{position:fixed;top:64px;right:16px;background:var(--panel2);border:1px solid var(--line);padding:10px 14px;border-radius:10px;z-index:20;opacity:0;transition:.25s;pointer-events:none;max-width:340px}
+.toast.show{opacity:1}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--mut);border-top-color:var(--acc);border-radius:50%;animation:sp 0.8s linear infinite;vertical-align:middle}
+@keyframes sp{to{transform:rotate(360deg)}}
+.bypassOn{outline:2px solid var(--warn)}
+.foot{font-size:12px;color:var(--mut);margin-top:10px}
+a{color:var(--acc2)}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎧 Lossless <span>Player</span></h1>
+  <span class="mut tagline" style="font-size:12px">Tìm & nghe nhạc FLAC hợp pháp từ Internet Archive • Bộ xử lý âm thanh Web Audio</span>
+  <span class="badge" id="modeBadge">…</span>
+</header>
+
+<main>
+  <!-- LEFT: search, album, queue -->
+  <section style="display:flex;flex-direction:column;gap:14px;min-width:0">
+    <div class="card">
+      <h2>🔎 Tìm nhạc lossless <small>(FLAC – Internet Archive)</small></h2>
+      <form id="searchForm" class="row">
+        <input type="text" id="q" class="grow" placeholder="Nhập tên nghệ sĩ, bài hát, album… (vd: Bach, Grateful Dead, jazz)" autocomplete="off">
+        <button class="pri" type="submit">Tìm</button>
+      </form>
+      <div class="row" style="margin-top:8px">
+        <select id="coll" title="Bộ sưu tập">
+          <option value="">Tất cả bộ sưu tập</option>
+          <option value="etree">Live Music Archive (etree)</option>
+          <option value="audio_music">Âm nhạc (audio_music)</option>
+          <option value="netlabels">Netlabels</option>
+          <option value="opensource_audio">Cộng đồng (opensource_audio)</option>
+          <option value="georgeblood">78 RPM (George Blood)</option>
+        </select>
+        <select id="sort" title="Sắp xếp">
+          <option value="">Liên quan nhất</option>
+          <option value="downloads desc">Nhiều lượt tải nhất</option>
+          <option value="date desc">Mới nhất</option>
+          <option value="date asc">Cũ nhất</option>
+          <option value="titleSorter asc">Tên A→Z</option>
+        </select>
+        <span class="mut" id="searchInfo" style="font-size:12px"></span>
+      </div>
+      <div class="list" id="results"><div class="mut" style="padding:10px 4px">Gợi ý: thử “Beethoven”, “jazz”, “Grateful Dead”, “piano”, “lofi”.</div></div>
+      <div class="row" style="margin-top:8px;justify-content:center"><button id="more" style="display:none">Tải thêm kết quả</button></div>
+    </div>
+
+    <div class="card" id="album">
+      <div id="albumHead">
+        <img id="albumArt" alt="">
+        <div class="grow" style="min-width:0">
+          <div id="albumTitle" style="font-weight:700;font-size:16px"></div>
+          <div id="albumSub" class="mut" style="font-size:12px"></div>
+          <div class="row" style="margin-top:6px">
+            <button class="pri" id="playAll">▶ Phát tất cả</button>
+            <button id="queueAll">＋ Thêm tất cả vào hàng đợi</button>
+            <a id="albumLink" target="_blank" rel="noopener" style="font-size:12px">Trang gốc ↗</a>
+          </div>
+        </div>
+      </div>
+      <div class="list" id="tracks"></div>
+    </div>
+
+    <div class="card">
+      <h2>📜 Hàng đợi <small id="qCount"></small></h2>
+      <div class="row">
+        <button id="shuffle" title="Phát ngẫu nhiên">🔀 Ngẫu nhiên</button>
+        <button id="repeat" title="Lặp lại">🔁 Lặp: Tắt</button>
+        <button id="clearQ">🗑 Xoá hàng đợi</button>
+      </div>
+      <div class="list" id="queue"></div>
+    </div>
+  </section>
+
+  <!-- RIGHT: DSP -->
+  <section style="display:flex;flex-direction:column;gap:14px;min-width:0">
+    <div class="card" id="vizCard">
+      <h2>📊 Phổ tần số thời gian thực <small id="ctxInfo"></small></h2>
+      <canvas id="viz"></canvas>
+      <div class="meter">
+        <span>Mức đỉnh:</span><span id="peakTxt">-∞ dBFS</span>
+        <span class="clip" id="clipLed" title="Đèn báo clipping"></span><span>Clipping</span>
+        <span style="margin-left:auto" class="row">
+          <select id="vizMode"><option value="bars">Cột</option><option value="line">Đường</option><option value="wave">Dạng sóng</option></select>
+        </span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🎚️ Bộ xử lý âm thanh</h2>
+      <div class="row" style="margin-bottom:8px">
+        <button id="bypass" title="So sánh A/B: tắt toàn bộ xử lý">A/B: Đang xử lý</button>
+        <span class="mut" style="font-size:12px">Phím tắt: <b>B</b> = bypass, <b>Space</b> = phát/dừng, <b>←/→</b> = tua 10s</span>
+      </div>
+      <div class="row" style="margin-bottom:8px">
+        <label class="mut" for="bgMode" style="font-size:13px">📱 Chế độ nghe nền (iPhone)</label>
+        <select id="bgMode" style="padding:5px 8px">
+          <option value="off">Tắt (luôn qua bộ xử lý)</option>
+          <option value="auto">Tự động: khi khoá màn hình/ẩn app</option>
+          <option value="always">Luôn bật (phát trực tiếp, không xử lý)</option>
+        </select>
+        <span id="pathInfo" class="mut" style="font-size:12px"></span>
+      </div>
+      <div id="bgNote" class="bgnote" style="display:none;margin-bottom:8px">⚠️ Đang phát qua trình phát nền: EQ/hiệu ứng tạm thời không áp dụng.</div>
+
+      <div class="tabs" id="presets"></div>
+      <div class="eq" id="eq"></div>
+      <div class="row" style="justify-content:space-between"><span class="mut" style="font-size:12px">EQ đồ hoạ 10 băng (±12 dB)</span><button id="eqReset" style="font-size:12px;padding:4px 10px">Đặt lại EQ</button></div>
+
+      <hr style="border:0;border-top:1px solid var(--line);margin:12px 0">
+
+      <div class="ctl"><label>Preamp (tiền khuếch đại)</label><input type="range" id="preamp" min="-12" max="12" step="0.5"><output id="preampV"></output></div>
+      <div class="ctl"><label>Tăng cường bass</label><input type="range" id="bass" min="0" max="100" step="1"><output id="bassV"></output></div>
+      <div class="ctl"><label>Độ rộng stereo</label><input type="range" id="width" min="0" max="200" step="1"><output id="widthV"></output></div>
+      <div class="ctl"><label>Hồi âm (reverb)</label><input type="range" id="reverb" min="0" max="100" step="1"><output id="reverbV"></output></div>
+      <div class="ctl"><label>Kích thước phòng</label><input type="range" id="room" min="0.3" max="6" step="0.1"><output id="roomV"></output></div>
+      <div class="ctl"><label>Nén động / Limiter</label>
+        <div class="row">
+          <button data-dyn="off">Tắt</button><button data-dyn="comp">Compressor</button><button data-dyn="limit">Limiter</button>
+        </div><output id="grV" title="Mức giảm gain"></output>
+      </div>
+      <div class="foot">Chuỗi xử lý: Nguồn → Preamp → EQ 10 băng → Bass enhancer → Stereo width → Reverb → Compressor/Limiter → Âm lượng → Loa. Bypass chuyển thẳng tín hiệu gốc (vẫn giữ âm lượng) để so sánh A/B.</div>
+    </div>
+
+    <div class="card">
+      <h2>ℹ️ Thông tin</h2>
+      <div class="foot" style="margin-top:0">
+        Nguồn nhạc: <a href="https://archive.org/details/audio" target="_blank" rel="noopener">Internet Archive</a> – kho lưu trữ phi lợi nhuận, nội dung được tải lên công khai (public domain, Creative Commons, Live Music Archive được nghệ sĩ cho phép…). Ứng dụng chỉ phát file định dạng <b>FLAC</b> (lossless). Vui lòng tôn trọng giấy phép của từng bản ghi.
+        <br>Chế độ kết nối: <select id="srcMode" style="padding:3px 6px;font-size:12px"><option value="auto">Tự động</option><option value="proxy">Qua proxy cục bộ</option><option value="direct">Trực tiếp archive.org</option></select>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="player">
+  <div class="row" style="flex-wrap:nowrap;min-width:0">
+    <img id="nowArt" alt="">
+    <div style="min-width:0">
+      <div id="nowTitle">Chưa phát bài nào</div>
+      <div id="nowSub">Tìm kiếm và chọn một bài để bắt đầu</div>
+      <div id="nowFmt"></div>
+    </div>
+  </div>
+  <div class="ctr">
+    <div class="row" style="gap:10px">
+      <button class="icon" id="prev" title="Bài trước">⏮</button>
+      <button class="icon" id="back10" title="Lùi 10 giây">⟲</button>
+      <button class="icon big" id="play" title="Phát / Dừng">▶</button>
+      <button class="icon" id="fwd10" title="Tới 10 giây">⟳</button>
+      <button class="icon" id="next" title="Bài tiếp">⏭</button>
+    </div>
+    <div class="seek"><span id="cur">0:00</span><input type="range" id="seek" min="0" max="1000" value="0"><span id="dur">0:00</span></div>
+  </div>
+  <div class="row" style="justify-content:flex-end;flex-wrap:nowrap">
+    <span id="buf" class="mut" style="font-size:12px"></span>
+    <button class="icon" id="mute" title="Tắt tiếng">🔊</button>
+    <input type="range" id="vol" min="0" max="100" style="max-width:140px">
+    <span id="volV" class="mut" style="font-size:12px;width:34px">100%</span>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<audio id="audio" preload="auto" crossorigin="anonymous" playsinline></audio>
+<audio id="audioBg" preload="auto" playsinline></audio>
+
+<script>
+"use strict";
+/* ================= Utilities ================= */
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtTime = t => { if (!isFinite(t) || t < 0) return "0:00"; t = Math.floor(t); const h = Math.floor(t/3600), m = Math.floor(t%3600/60), s = t%60; return (h ? h+":"+String(m).padStart(2,"0") : m) + ":" + String(s).padStart(2,"0"); };
+const fmtSize = b => b > 1e9 ? (b/1e9).toFixed(2)+" GB" : (b/1e6).toFixed(1)+" MB";
+const first = v => Array.isArray(v) ? v[0] : v;
+let toastT;
+function toast(msg, ms = 2600) { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), ms); }
+
+/* ================= Settings (localStorage) ================= */
+const IS_IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const LS_KEY = "losslessPlayer.settings.v1", LS_QUEUE = "losslessPlayer.queue.v1";
+const FREQS = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+const FLABEL = ["31", "62", "125", "250", "500", "1k", "2k", "4k", "8k", "16k"];
+const PRESETS = {
+  "Phẳng (Flat)":      [0,0,0,0,0,0,0,0,0,0],
+  "Tăng Bass":         [7,6,5,3,1,0,0,0,0,0],
+  "Giọng hát (Vocal)": [-2,-2,-1,1,3,4,4,3,1,0],
+  "Rock":              [5,4,2,-1,-2,-1,2,3,4,4],
+  "Jazz":              [3,2,1,2,-1,-1,0,1,2,3],
+  "Cổ điển (Classical)":[4,3,2,1,0,0,0,1,2,3],
+  "Điện tử (Electronic)":[6,5,1,0,-2,1,0,2,4,5]
+};
+const DEFAULTS = { eq:[0,0,0,0,0,0,0,0,0,0], preset:"Phẳng (Flat)", preamp:0, bass:0, width:100, reverb:0, room:2, dyn:"limit", bypass:false, volume:85, muted:false, shuffle:false, repeat:"off", vizMode:"bars", srcMode:"auto", bgMode: IS_IOS ? "auto" : "off" };
+let S = (() => { try { return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem(LS_KEY) || "{}")); } catch { return { ...DEFAULTS }; } })();
+let saveT;
+function save() { clearTimeout(saveT); saveT = setTimeout(() => localStorage.setItem(LS_KEY, JSON.stringify(S)), 150); }
+
+/* ================= Source mode (proxy vs direct) ================= */
+let useProxy = false;
+async function detectMode() {
+  if (S.srcMode === "proxy") useProxy = true;
+  else if (S.srcMode === "direct") useProxy = false;
+  else {
+    useProxy = false;
+    // Static hosts (GitHub Pages, file://) have no proxy: go straight to archive.org (it sends CORS headers).
+    const staticHost = /\.github\.io$|\.pages\.dev$|\.netlify\.app$|\.vercel\.app$/i.test(location.hostname);
+    if (location.protocol.startsWith("http") && !staticHost) {
+      try { const r = await fetch("/healthz", { cache: "no-store" }); useProxy = r.ok && (await r.text()).trim() === "ok"; } catch {}
+    }
+  }
+  $("#modeBadge").textContent = useProxy ? "🟢 Proxy cục bộ" : "🔵 Kết nối trực tiếp archive.org";
+}
+const apiSearch = qs => (useProxy ? "/api/search?" : "https://archive.org/advancedsearch.php?") + qs;
+const apiMeta = id => (useProxy ? "/api/meta/" : "https://archive.org/metadata/") + encodeURIComponent(id);
+const encPath = p => p.split("/").map(encodeURIComponent).join("/");
+const streamUrl = (id, file) => (useProxy ? "/stream/" : "https://archive.org/download/") + encodeURIComponent(id) + "/" + encPath(file);
+const artUrl = id => "https://archive.org/services/img/" + encodeURIComponent(id);
+
+/* ================= Search ================= */
+let page = 1, lastQuery = "", searching = false;
+const ROWS = 30;
+async function search(reset = true) {
+  const q = $("#q").value.trim();
+  if (!q) { toast("Hãy nhập từ khoá tìm kiếm"); return; }
+  if (searching) return;
+  searching = true;
+  if (reset) { page = 1; $("#results").innerHTML = '<div class="mut" style="padding:10px 4px"><span class="spin"></span> Đang tìm…</div>'; }
+  lastQuery = q;
+  const safe = q.replace(/[\\"]/g, " ");
+  let query = `(${safe}) AND (mediatype:audio OR mediatype:etree) AND format:FLAC`;
+  const coll = $("#coll").value; if (coll) query += ` AND collection:${coll}`;
+  const p = new URLSearchParams();
+  p.set("q", query);
+  ["identifier","title","creator","date","year","downloads","collection","item_size"].forEach(f => p.append("fl[]", f));
+  const sort = $("#sort").value; if (sort) p.append("sort[]", sort);
+  p.set("rows", ROWS); p.set("page", page); p.set("output", "json");
+  try {
+    const r = await fetch(apiSearch(p.toString()));
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const j = await r.json();
+    const docs = j.response?.docs || [], total = j.response?.numFound || 0;
+    if (reset) $("#results").innerHTML = "";
+    if (!docs.length && reset) $("#results").innerHTML = '<div class="mut" style="padding:10px 4px">Không tìm thấy kết quả FLAC nào. Thử từ khoá khác (tiếng Anh thường cho nhiều kết quả hơn).</div>';
+    for (const d of docs) $("#results").appendChild(resultItem(d));
+    $("#searchInfo").textContent = `${total.toLocaleString("vi-VN")} album/bộ sưu tập có FLAC`;
+    $("#more").style.display = page * ROWS < total ? "" : "none";
+  } catch (e) {
+    $("#results").innerHTML = `<div style="color:var(--bad);padding:10px 4px">Lỗi tìm kiếm: ${esc(e.message)}</div>`;
+  } finally { searching = false; }
+}
+function resultItem(d) {
+  const el = document.createElement("div");
+  el.className = "item";
+  const creator = first(d.creator) || "Không rõ nghệ sĩ";
+  const year = d.year || (d.date || "").slice(0, 4);
+  el.innerHTML = `<img loading="lazy" src="${artUrl(d.identifier)}" alt="">
+    <div class="grow"><div class="t">${esc(first(d.title) || d.identifier)}</div>
+    <div class="s">${esc(creator)}${year ? " • " + esc(year) : ""}${d.downloads ? " • " + Number(d.downloads).toLocaleString("vi-VN") + " lượt tải" : ""}</div></div>
+    <div class="act"><button title="Xem danh sách bài">Mở</button></div>`;
+  el.onclick = () => openAlbum(d.identifier);
+  return el;
+}
+$("#searchForm").onsubmit = e => { e.preventDefault(); search(true); };
+$("#more").onclick = () => { page++; search(false); };
+$("#coll").onchange = $("#sort").onchange = () => { if ($("#q").value.trim()) search(true); };
+
+/* ================= Album / item metadata ================= */
+let albumTracks = [];
+function parseLen(l) { if (l == null) return 0; if (/:/.test(l)) return String(l).split(":").reduce((a, b) => a * 60 + parseFloat(b), 0); return parseFloat(l) || 0; }
+async function openAlbum(id) {
+  const box = $("#album"); box.style.display = "block";
+  $("#tracks").innerHTML = '<div class="mut" style="padding:10px 4px"><span class="spin"></span> Đang tải danh sách bài…</div>';
+  $("#albumArt").src = artUrl(id);
+  $("#albumTitle").textContent = id; $("#albumSub").textContent = "";
+  $("#albumLink").href = "https://archive.org/details/" + encodeURIComponent(id);
+  box.scrollIntoView({ behavior: "smooth", block: "start" });
+  try {
+    const r = await fetch(apiMeta(id)); if (!r.ok) throw new Error("HTTP " + r.status);
+    const j = await r.json(); const md = j.metadata || {};
+    const album = first(md.title) || id, artist = first(md.creator) || "Không rõ nghệ sĩ";
+    $("#albumTitle").textContent = album;
+    $("#albumSub").textContent = [artist, first(md.date), first(md.licenseurl) ? "Giấy phép: " + first(md.licenseurl).replace(/^https?:\/\//, "") : ""].filter(Boolean).join(" • ");
+    const files = (j.files || []).filter(f => /\.flac$/i.test(f.name) && !/fingerprint/i.test(f.format || "") && String(f.private) !== "true");
+    if (j.is_dark || md.access_restricted_item === "true" || md.access_restricted_item === true) files.length = 0;
+    files.sort((a, b) => (parseInt(a.track) || 0) - (parseInt(b.track) || 0) || a.name.localeCompare(b.name, undefined, { numeric: true }));
+    albumTracks = files.map(f => ({
+      id, file: f.name, title: f.title || f.name.split("/").pop().replace(/\.flac$/i, ""),
+      artist: f.artist || f.creator || artist, album, length: parseLen(f.length), size: +f.size || 0,
+      format: f.format || "FLAC", bitrate: f.bitrate ? +f.bitrate : 0
+    }));
+    if (!albumTracks.length) { $("#tracks").innerHTML = '<div class="mut" style="padding:10px 4px">Mục này không có file FLAC tải/nghe công khai (có thể bị giới hạn chỉ stream trên archive.org).</div>'; return; }
+    renderTracks();
+  } catch (e) { $("#tracks").innerHTML = `<div style="color:var(--bad);padding:10px 4px">Lỗi tải metadata: ${esc(e.message)}</div>`; }
+}
+function avgKbps(t) { return t.bitrate || (t.size && t.length ? Math.round(t.size * 8 / t.length / 1000) : 0); }
+function renderTracks() {
+  const box = $("#tracks"); box.innerHTML = "";
+  albumTracks.forEach((t, i) => {
+    const el = document.createElement("div"); el.className = "item";
+    const kb = avgKbps(t);
+    el.innerHTML = `<div class="mut" style="width:22px;text-align:right">${i + 1}</div>
+      <div class="grow"><div class="t">${esc(t.title)}</div>
+      <div class="s"><span class="tag g">FLAC</span>${t.length ? fmtTime(t.length) + " • " : ""}${t.size ? fmtSize(t.size) : ""}${kb ? " • ~" + kb + " kbps" : ""}</div></div>
+      <div class="act"><button data-a="play" title="Phát ngay">▶</button><button data-a="add" title="Thêm vào hàng đợi">＋</button></div>`;
+    el.onclick = e => { const a = e.target.dataset.a; if (a === "add") { addToQueue([t]); toast("Đã thêm: " + t.title); } else playNow(t); };
+    box.appendChild(el);
+  });
+}
+$("#playAll").onclick = () => { if (!albumTracks.length) return; queue = albumTracks.slice(); qi = -1; persistQueue(); renderQueue(); playIndex(S.shuffle ? Math.floor(Math.random() * queue.length) : 0); };
+$("#queueAll").onclick = () => { addToQueue(albumTracks); toast(`Đã thêm ${albumTracks.length} bài vào hàng đợi`); };
+
+/* ================= Queue ================= */
+let queue = [], qi = -1;
+try { const saved = JSON.parse(localStorage.getItem(LS_QUEUE) || "null"); if (saved) { queue = saved.queue || []; qi = saved.qi ?? -1; } } catch {}
+function persistQueue() { try { localStorage.setItem(LS_QUEUE, JSON.stringify({ queue: queue.slice(0, 500), qi })); } catch {} }
+function addToQueue(list) { queue.push(...list.map(t => ({ ...t }))); persistQueue(); renderQueue(); }
+function playNow(t) { const k = queue.findIndex(x => x.id === t.id && x.file === t.file); if (k >= 0) playIndex(k); else { queue.splice(qi + 1, 0, { ...t }); persistQueue(); playIndex(qi + 1); } }
+function renderQueue() {
+  const box = $("#queue"); box.innerHTML = "";
+  $("#qCount").textContent = queue.length ? `(${queue.length} bài)` : "";
+  if (!queue.length) { box.innerHTML = '<div class="mut" style="padding:10px 4px">Hàng đợi trống.</div>'; return; }
+  queue.forEach((t, i) => {
+    const el = document.createElement("div"); el.className = "item" + (i === qi ? " playing" : "");
+    el.innerHTML = `<div class="mut" style="width:22px;text-align:right">${i === qi ? "♪" : i + 1}</div>
+      <div class="grow"><div class="t">${esc(t.title)}</div><div class="s">${esc(t.artist)} • ${esc(t.album)}</div></div>
+      <div class="act"><button data-a="up" title="Lên">↑</button><button data-a="down" title="Xuống">↓</button><button data-a="rm" title="Xoá">✕</button></div>`;
+    el.onclick = e => {
+      const a = e.target.dataset.a;
+      if (a === "rm") { queue.splice(i, 1); if (i < qi) qi--; else if (i === qi) qi = -1; }
+      else if (a === "up" && i > 0) { [queue[i - 1], queue[i]] = [queue[i], queue[i - 1]]; if (qi === i) qi--; else if (qi === i - 1) qi++; }
+      else if (a === "down" && i < queue.length - 1) { [queue[i + 1], queue[i]] = [queue[i], queue[i + 1]]; if (qi === i) qi++; else if (qi === i + 1) qi--; }
+      else if (!a) { playIndex(i); return; }
+      persistQueue(); renderQueue();
+    };
+    box.appendChild(el);
+  });
+}
+$("#clearQ").onclick = () => { queue = []; qi = -1; persistQueue(); renderQueue(); };
+function updShuffleRepeat() {
+  $("#shuffle").classList.toggle("on", S.shuffle);
+  $("#repeat").classList.toggle("on", S.repeat !== "off");
+  $("#repeat").textContent = "🔁 Lặp: " + ({ off: "Tắt", all: "Tất cả", one: "Một bài" }[S.repeat]);
+}
+$("#shuffle").onclick = () => { S.shuffle = !S.shuffle; save(); updShuffleRepeat(); };
+$("#repeat").onclick = () => { S.repeat = { off: "all", all: "one", one: "off" }[S.repeat]; save(); updShuffleRepeat(); };
+
+/* ================= Audio engine (Web Audio API) ================= */
+// elA: routed through the Web Audio graph (DSP). elB: plain element used for background / lock-screen playback.
+const elA = $("#audio"), elB = $("#audioBg");
+let audio = elA; // the currently active element
+let ctx, srcNode, N = {};
+function makeImpulse(seconds) {
+  const rate = ctx.sampleRate, len = Math.max(1, Math.floor(rate * seconds));
+  const buf = ctx.createBuffer(2, len, rate);
+  for (let c = 0; c < 2; c++) {
+    const d = buf.getChannelData(c);
+    // Early reflections + exponentially decaying diffuse noise tail
+    for (let i = 0; i < len; i++) { const t = i / len; d[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 3.2) * Math.exp(-t * 2); }
+    for (let k = 0; k < 8; k++) { const p = Math.floor(rate * (0.007 + Math.random() * 0.05)); if (p < len) d[p] += (Math.random() * 0.6 + 0.2) * (Math.random() < .5 ? -1 : 1); }
+  }
+  return buf;
+}
+function bassCurve(amount) {
+  const n = 2048, c = new Float32Array(n), k = 1 + amount * 8;
+  for (let i = 0; i < n; i++) { const x = i * 2 / n - 1; c[i] = Math.tanh(k * x) / Math.tanh(k); }
+  return c;
+}
+function initAudio() {
+  if (ctx) return;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  ctx = new AC({ latencyHint: "playback" });
+  srcNode = ctx.createMediaElementSource(elA);
+  const g = v => { const n = ctx.createGain(); n.gain.value = v; return n; };
+
+  N.input = g(1);
+  N.preamp = g(1);
+  N.eq = FREQS.map((f, i) => { const b = ctx.createBiquadFilter(); b.type = i === 0 ? "lowshelf" : i === 9 ? "highshelf" : "peaking"; b.frequency.value = f; b.Q.value = 1.41; b.gain.value = 0; return b; });
+  // Bass enhancer: low-shelf boost + parallel harmonic exciter (lowpass -> saturator -> mix)
+  N.bassShelf = ctx.createBiquadFilter(); N.bassShelf.type = "lowshelf"; N.bassShelf.frequency.value = 90;
+  N.bassLP = ctx.createBiquadFilter(); N.bassLP.type = "lowpass"; N.bassLP.frequency.value = 120; N.bassLP.Q.value = 0.7;
+  N.bassSat = ctx.createWaveShaper(); N.bassSat.oversample = "4x";
+  N.bassHP = ctx.createBiquadFilter(); N.bassHP.type = "highpass"; N.bassHP.frequency.value = 80; // keep the generated harmonics, not sub rumble
+  N.bassMix = g(0); N.bassOut = g(1);
+  // Stereo width (mid/side)
+  N.split = ctx.createChannelSplitter(2); N.merge = ctx.createChannelMerger(2);
+  N.lMid = g(0.5); N.rMid = g(0.5); N.lSide = g(0.5); N.rSide = g(-0.5);
+  N.mid = g(1); N.side = g(1); N.sideInv = g(-1);
+  N.widthOut = g(1);
+  // Reverb
+  N.conv = ctx.createConvolver(); N.dry = g(1); N.wet = g(0); N.revOut = g(1);
+  N.revPre = ctx.createBiquadFilter(); N.revPre.type = "highpass"; N.revPre.frequency.value = 200;
+  // Dynamics
+  N.comp = ctx.createDynamicsCompressor(); N.dynIn = g(1); N.dynThru = g(1); N.dynComp = g(0); N.dynOut = g(1);
+  // Output
+  N.proc = g(1); N.bypass = g(0); N.analyser = ctx.createAnalyser(); N.analyser.fftSize = 8192; N.analyser.smoothingTimeConstant = 0.78;
+  N.vol = g(1);
+
+  // ---- wiring ----
+  srcNode.connect(N.input);
+  srcNode.connect(N.bypass);
+  N.input.connect(N.preamp);
+  let last = N.preamp; for (const b of N.eq) { last.connect(b); last = b; }
+  last.connect(N.bassShelf);
+  N.bassShelf.connect(N.bassOut);
+  last.connect(N.bassLP); N.bassLP.connect(N.bassSat); N.bassSat.connect(N.bassHP); N.bassHP.connect(N.bassMix); N.bassMix.connect(N.bassOut);
+  // width
+  N.bassOut.connect(N.split);
+  N.split.connect(N.lMid, 0); N.split.connect(N.rMid, 1); N.split.connect(N.lSide, 0); N.split.connect(N.rSide, 1);
+  N.lMid.connect(N.mid); N.rMid.connect(N.mid); N.lSide.connect(N.side); N.rSide.connect(N.side);
+  N.mid.connect(N.merge, 0, 0); N.mid.connect(N.merge, 0, 1);
+  N.side.connect(N.merge, 0, 0); N.side.connect(N.sideInv); N.sideInv.connect(N.merge, 0, 1);
+  N.merge.connect(N.widthOut);
+  // reverb
+  N.widthOut.connect(N.dry); N.widthOut.connect(N.revPre); N.revPre.connect(N.conv); N.conv.connect(N.wet);
+  N.dry.connect(N.revOut); N.wet.connect(N.revOut);
+  // dynamics
+  N.revOut.connect(N.dynIn); N.dynIn.connect(N.dynThru); N.dynIn.connect(N.comp); N.comp.connect(N.dynComp);
+  N.dynThru.connect(N.dynOut); N.dynComp.connect(N.dynOut);
+  N.dynOut.connect(N.proc);
+  // out
+  N.proc.connect(N.analyser); N.bypass.connect(N.analyser);
+  N.analyser.connect(N.vol); N.vol.connect(ctx.destination);
+
+  applyAll(true);
+  $("#ctxInfo").textContent = `(AudioContext ${ctx.sampleRate} Hz)`;
+  requestAnimationFrame(draw);
+}
+const ramp = (param, v, t = 0.04) => { if (!ctx) return; const now = ctx.currentTime; param.cancelScheduledValues(now); param.setTargetAtTime(v, now, t); };
+const db2lin = d => Math.pow(10, d / 20);
+let lastRoom = -1;
+function applyAll(force) {
+  elB.volume = S.muted ? 0 : Math.pow(S.volume / 100, 2); // note: iOS ignores element.volume (hardware buttons only)
+  if (!ctx) return;
+  N.eq.forEach((b, i) => ramp(b.gain, S.eq[i]));
+  ramp(N.preamp.gain, db2lin(S.preamp));
+  const b = S.bass / 100;
+  ramp(N.bassShelf.gain, b * 9);
+  N.bassSat.curve = bassCurve(b);
+  ramp(N.bassMix.gain, b * 0.6);
+  const w = S.width / 100;
+  ramp(N.side.gain, w);
+  ramp(N.mid.gain, w > 1 ? 1 / (1 + (w - 1) * 0.35) : 1); // keep level roughly constant when widening
+  const r = S.reverb / 100;
+  ramp(N.wet.gain, r * 0.9); ramp(N.dry.gain, 1 - r * 0.35);
+  if (force || lastRoom !== S.room) { N.conv.buffer = makeImpulse(S.room); lastRoom = S.room; }
+  // dynamics
+  const c = N.comp;
+  if (S.dyn === "limit") { c.threshold.value = -1.5; c.knee.value = 0; c.ratio.value = 20; c.attack.value = 0.002; c.release.value = 0.12; }
+  else if (S.dyn === "comp") { c.threshold.value = -20; c.knee.value = 12; c.ratio.value = 3.5; c.attack.value = 0.01; c.release.value = 0.25; }
+  ramp(N.dynComp.gain, S.dyn === "off" ? 0 : 1, 0.01);
+  ramp(N.dynThru.gain, S.dyn === "off" ? 1 : 0, 0.01);
+  ramp(N.proc.gain, S.bypass ? 0 : 1, 0.015);
+  ramp(N.bypass.gain, S.bypass ? 1 : 0, 0.015);
+  ramp(N.vol.gain, S.muted ? 0 : Math.pow(S.volume / 100, 2));
+}
+
+/* ================= DSP UI ================= */
+function buildEQ() {
+  const box = $("#eq"); box.innerHTML = "";
+  FREQS.forEach((f, i) => {
+    const d = document.createElement("div"); d.className = "band";
+    d.innerHTML = `<span class="v" id="eqv${i}"></span><input type="range" min="-12" max="12" step="0.5" id="eq${i}" aria-label="${FLABEL[i]} Hz"><span class="f">${FLABEL[i]}</span>`;
+    box.appendChild(d);
+    const inp = d.querySelector("input");
+    inp.oninput = () => { S.eq[i] = +inp.value; S.preset = ""; save(); syncUI(); applyAll(); };
+    inp.ondblclick = () => { S.eq[i] = 0; S.preset = ""; save(); syncUI(); applyAll(); };
+  });
+  const pb = $("#presets"); pb.innerHTML = "";
+  Object.keys(PRESETS).forEach(name => {
+    const bt = document.createElement("button"); bt.textContent = name; bt.dataset.p = name;
+    bt.onclick = () => { S.eq = PRESETS[name].slice(); S.preset = name; save(); syncUI(); applyAll(); };
+    pb.appendChild(bt);
+  });
+}
+const sliders = { preamp: v => (v > 0 ? "+" : "") + v + " dB", bass: v => v + "%", width: v => v + "%", reverb: v => v + "%", room: v => (+v).toFixed(1) + " s" };
+Object.keys(sliders).forEach(k => { $("#" + k).oninput = e => { S[k] = +e.target.value; save(); syncUI(); applyAll(); }; });
+$$("[data-dyn]").forEach(b => b.onclick = () => { S.dyn = b.dataset.dyn; save(); syncUI(); applyAll(); });
+$("#eqReset").onclick = () => { S.eq = PRESETS["Phẳng (Flat)"].slice(); S.preset = "Phẳng (Flat)"; save(); syncUI(); applyAll(); };
+function toggleBypass() { S.bypass = !S.bypass; save(); syncUI(); applyAll(); toast(S.bypass ? "B: Bypass – tín hiệu gốc" : "A: Đang xử lý âm thanh", 1200); }
+$("#bypass").onclick = toggleBypass;
+$("#vizMode").onchange = e => { S.vizMode = e.target.value; save(); };
+$("#srcMode").onchange = async e => { S.srcMode = e.target.value; save(); await detectMode(); toast("Đã đổi chế độ kết nối (áp dụng cho bài kế tiếp)"); };
+function syncUI() {
+  S.eq.forEach((v, i) => { $("#eq" + i).value = v; $("#eqv" + i).textContent = (v > 0 ? "+" : "") + v; });
+  $$("#presets button").forEach(b => b.classList.toggle("on", b.dataset.p === S.preset));
+  Object.entries(sliders).forEach(([k, f]) => { $("#" + k).value = S[k]; $("#" + k + "V").textContent = f(S[k]); });
+  $$("[data-dyn]").forEach(b => b.classList.toggle("on", b.dataset.dyn === S.dyn));
+  const bp = $("#bypass"); bp.textContent = S.bypass ? "A/B: BYPASS (gốc)" : "A/B: Đang xử lý"; bp.classList.toggle("on", !S.bypass);
+  $("#vizCard").classList.toggle("bypassOn", S.bypass);
+  $("#vol").value = S.volume; $("#volV").textContent = S.volume + "%";
+  $("#mute").textContent = S.muted || S.volume == 0 ? "🔇" : "🔊";
+  $("#vizMode").value = S.vizMode; $("#srcMode").value = S.srcMode; $("#bgMode").value = S.bgMode; updPathInfo();
+  updShuffleRepeat();
+}
+
+/* ================= Visualizer ================= */
+const cv = $("#viz"), c2 = cv.getContext("2d");
+let fbuf, tbuf, peakHold = 0, clipUntil = 0;
+function draw() {
+  requestAnimationFrame(draw);
+  const dpr = window.devicePixelRatio || 1, W = cv.clientWidth * dpr, H = cv.clientHeight * dpr;
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+  const A = N.analyser; if (!A) return;
+  if (!fbuf) { fbuf = new Float32Array(A.frequencyBinCount); tbuf = new Float32Array(A.fftSize); }
+  c2.clearRect(0, 0, W, H);
+  // grid
+  c2.strokeStyle = "#1a2232"; c2.fillStyle = "#56627a"; c2.lineWidth = 1; c2.font = `${10 * dpr}px system-ui`;
+  const fmin = 20, fmax = Math.min(22000, ctx.sampleRate / 2), lx = f => Math.log(f / fmin) / Math.log(fmax / fmin) * W;
+  [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000].forEach((f, i) => { const x = lx(f); c2.beginPath(); c2.moveTo(x, 0); c2.lineTo(x, H); c2.stroke(); c2.fillText(FLABEL[i], x + 2, H - 4); });
+  A.getFloatTimeDomainData(tbuf);
+  let pk = 0; for (let i = 0; i < tbuf.length; i++) { const a = Math.abs(tbuf[i]); if (a > pk) pk = a; }
+  peakHold = Math.max(pk, peakHold * 0.96);
+  const now = performance.now(); if (pk >= 0.999) clipUntil = now + 800;
+  $("#clipLed").classList.toggle("hot", now < clipUntil);
+  $("#peakTxt").textContent = peakHold > 1e-5 ? (20 * Math.log10(peakHold)).toFixed(1) + " dBFS" : "-∞ dBFS";
+  if (S.vizMode === "wave") {
+    c2.strokeStyle = "#3ddc97"; c2.lineWidth = 1.5 * dpr; c2.beginPath();
+    const step = tbuf.length / W;
+    for (let x = 0; x < W; x++) { const y = H / 2 - tbuf[Math.floor(x * step)] * H * 0.45; x ? c2.lineTo(x, y) : c2.moveTo(x, y); }
+    c2.stroke(); return;
+  }
+  A.getFloatFrequencyData(fbuf);
+  const binHz = ctx.sampleRate / A.fftSize, minDb = -100, maxDb = -10;
+  const yOf = db => H - Math.max(0, Math.min(1, (db - minDb) / (maxDb - minDb))) * (H - 14 * dpr);
+  const grad = c2.createLinearGradient(0, H, 0, 0); grad.addColorStop(0, "#1f7a5a"); grad.addColorStop(0.6, "#3ddc97"); grad.addColorStop(1, "#ffd35c");
+  if (S.vizMode === "bars") {
+    const bars = Math.max(32, Math.floor(W / (6 * dpr))), bw = W / bars;
+    c2.fillStyle = grad;
+    for (let i = 0; i < bars; i++) {
+      const f0 = fmin * Math.pow(fmax / fmin, i / bars), f1 = fmin * Math.pow(fmax / fmin, (i + 1) / bars);
+      let b0 = Math.floor(f0 / binHz), b1 = Math.max(b0 + 1, Math.ceil(f1 / binHz)), m = -200;
+      for (let b = b0; b < b1 && b < fbuf.length; b++) m = Math.max(m, fbuf[b]);
+      const y = yOf(m); c2.fillRect(i * bw + 1, y, bw - 2, H - y);
+    }
+  } else {
+    c2.strokeStyle = "#3ddc97"; c2.lineWidth = 1.6 * dpr; c2.beginPath();
+    for (let x = 0; x < W; x += 2) { const f = fmin * Math.pow(fmax / fmin, x / W), b = Math.round(f / binHz); const y = yOf(fbuf[Math.min(b, fbuf.length - 1)]); x ? c2.lineTo(x, y) : c2.moveTo(x, y); }
+    c2.stroke(); c2.lineTo(W, H); c2.lineTo(0, H); c2.closePath(); c2.globalAlpha = 0.15; c2.fillStyle = grad; c2.fill(); c2.globalAlpha = 1;
+  }
+  // gain reduction readout
+  if (S.dyn !== "off" && !S.bypass) $("#grV").textContent = N.comp.reduction.toFixed(1) + " dB"; else $("#grV").textContent = "";
+}
+
+/* ================= FLAC STREAMINFO probe (sample rate / bit depth / channels) ================= */
+async function probeFlac(t) {
+  try {
+    const r = await fetch(streamUrl(t.id, t.file), { headers: { Range: "bytes=0-131071" } });
+    const reader = r.body.getReader(); let got = new Uint8Array(0);
+    while (got.length < 131072) { const { done, value } = await reader.read(); if (done) break; const n = new Uint8Array(got.length + value.length); n.set(got); n.set(value, got.length); got = n; }
+    reader.cancel().catch(() => {});
+    let off = -1; for (let i = 0; i < got.length - 42; i++) if (got[i] === 0x66 && got[i+1] === 0x4C && got[i+2] === 0x61 && got[i+3] === 0x43) { off = i; break; }
+    if (off < 0) return null;
+    const s = got.subarray(off + 8, off + 8 + 34); // STREAMINFO body
+    const sr = (s[10] << 12) | (s[11] << 4) | (s[12] >> 4);
+    const ch = ((s[12] >> 1) & 0x7) + 1;
+    const bps = (((s[12] & 1) << 4) | (s[13] >> 4)) + 1;
+    const total = (s[13] & 0xF) * 2 ** 32 + ((s[14] << 24) >>> 0) + (s[15] << 16) + (s[16] << 8) + s[17];
+    return { sr, ch, bps, dur: total && sr ? total / sr : 0 };
+  } catch { return null; }
+}
+
+/* ================= Playback ================= */
+let curTrack = null;
+function showFmt(t, info) {
+  const kb = avgKbps(t);
+  const parts = [`<span class="tag g">${esc((t.format || "FLAC").replace(/flac/i, "FLAC"))}</span>`];
+  if (info) parts.push(`<span class="tag">${(info.sr / 1000).toFixed(info.sr % 1000 ? 1 : 0)} kHz</span><span class="tag">${info.bps}-bit</span><span class="tag">${info.ch === 1 ? "Mono" : info.ch === 2 ? "Stereo" : info.ch + " kênh"}</span>`);
+  if (kb) parts.push(`<span class="tag">~${kb} kbps</span>`);
+  if (t.size) parts.push(`<span class="tag">${fmtSize(t.size)}</span>`);
+  if (info && ctx && info.sr !== ctx.sampleRate) parts.push(`<span class="mut" title="Trình duyệt resample về tần số của thiết bị">→ ${ctx.sampleRate / 1000} kHz output</span>`);
+  $("#nowFmt").innerHTML = parts.join("");
+}
+/* ================= iOS: gesture unlock + background listening ================= */
+const SILENT_WAV = (() => { // 0.1 s of silence, used to "unlock" the background element inside a user gesture
+  const n = 800, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf), w = (o, str) => [...str].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  w(0, "RIFF"); v.setUint32(4, 36 + n * 2, true); w(8, "WAVE"); w(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, 8000, true); v.setUint32(28, 16000, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, "data"); v.setUint32(40, n * 2, true);
+  let str = ""; new Uint8Array(buf).forEach(x => str += String.fromCharCode(x)); return "data:audio/wav;base64," + btoa(str);
+})();
+const hasSrc = el => !!el.getAttribute("src") && el.getAttribute("src") !== SILENT_WAV;
+function clearEl(el) { el.pause(); el.removeAttribute("src"); el.load(); }
+let bgUnlocked = false, pendingRestore = false;
+function onGesture() {
+  // iOS requires AudioContext.resume() and media play() to originate from a user gesture.
+  initAudio();
+  if (ctx.state !== "running") ctx.resume().catch(() => {});
+  if (!bgUnlocked && !hasSrc(elB)) {
+    bgUnlocked = true; elB.src = SILENT_WAV;
+    const p = elB.play(); if (p) p.then(() => { if (elB.getAttribute("src") === SILENT_WAV) elB.pause(); }).catch(() => {});
+  }
+  if (pendingRestore && !document.hidden) { pendingRestore = false; ctx.resume().catch(() => {}); handoff(desiredEl()); } // play() stays inside the gesture
+}
+["pointerdown", "touchend", "keydown"].forEach(ev => document.addEventListener(ev, onGesture, { capture: true, passive: true }));
+if (navigator.audioSession) { try { navigator.audioSession.type = "playback"; } catch {} } // Safari 17+: play even with the silent switch on
+
+function desiredEl() {
+  if (S.bgMode === "always") return elB;
+  if (S.bgMode === "auto" && document.visibilityState === "hidden") return elB;
+  return elA;
+}
+// Move playback to another element at the same position (cannot disconnect elA from the graph, so we swap elements).
+function handoff(to) {
+  const from = audio; if (from === to) { updPathInfo(); return; }
+  audio = to;
+  if (!hasSrc(from)) { clearEl(from); updPathInfo(); return; }
+  const src = from.getAttribute("src"), t = from.currentTime, wasPlaying = !from.paused && !from.ended;
+  if (to === elA && ctx && ctx.state !== "running") ctx.resume().catch(() => {});
+  to.src = src;
+  const seek = () => { try { to.currentTime = t; } catch {} };
+  if (to.readyState >= 1) seek(); else to.addEventListener("loadedmetadata", seek, { once: true });
+  if (wasPlaying) {
+    to.play().then(() => clearEl(from)).catch(err => { // could not start: keep the old element playing
+      console.warn("handoff failed", err); audio = from; clearEl(to); updPathInfo(); syncPlayBtn();
+    });
+  } else { clearEl(from); }
+  updPathInfo(); syncPlayBtn();
+}
+function updPathInfo() {
+  const plain = audio === elB;
+  $("#pathInfo").textContent = plain ? "Đang dùng: trình phát nền (không xử lý)" : "Đang dùng: bộ xử lý Web Audio";
+  $("#bgNote").style.display = plain ? "" : "none";
+}
+function syncPlayBtn() { $("#play").textContent = audio.paused ? "▶" : "⏸"; }
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { if (S.bgMode === "auto") handoff(elB); return; }
+  // Visible again: restore the DSP path if the AudioContext can run; otherwise wait for the next tap.
+  if (!ctx) { handoff(desiredEl()); return; }
+  ctx.resume().catch(() => {}).finally(() => {
+    if (desiredEl() === elA && ctx.state !== "running") { pendingRestore = true; toast("Chạm vào màn hình để bật lại bộ xử lý âm thanh", 4000); }
+    else handoff(desiredEl());
+  });
+});
+$("#bgMode").onchange = e => {
+  S.bgMode = e.target.value; save();
+  if (S.bgMode !== "always" && ctx && ctx.state !== "running") ctx.resume().catch(() => {});
+  handoff(desiredEl()); syncUI();
+};
+
+/* ================= Playback ================= */
+function playIndex(i) {
+  if (i < 0 || i >= queue.length) return;
+  initAudio();
+  const want = desiredEl();
+  if (want !== audio) { clearEl(audio); audio = want; updPathInfo(); }
+  if (audio === elA && ctx.state !== "running") ctx.resume().catch(() => {}); // not awaited: keep play() inside the user gesture (iOS)
+  qi = i; const t = queue[i]; curTrack = t; persistQueue(); renderQueue();
+  $("#nowTitle").textContent = t.title; $("#nowSub").textContent = `${t.artist} — ${t.album}`;
+  $("#nowArt").src = artUrl(t.id); showFmt(t, null);
+  document.title = `▶ ${t.title} – Lossless Player`;
+  audio.src = streamUrl(t.id, t.file);
+  audio.play().catch(e => { if (e.name !== "AbortError") toast("Không phát được: " + e.message + (IS_IOS ? " – hãy chạm nút ▶" : "")); });
+  if ("mediaSession" in navigator) {
+    navigator.mediaSession.metadata = new MediaMetadata({ title: t.title, artist: t.artist, album: t.album, artwork: [{ src: artUrl(t.id), sizes: "180x180" }] });
+  }
+  probeFlac(t).then(info => { if (curTrack === t) showFmt(t, info); });
+}
+function nextIndex(dir = 1, auto = false) {
+  if (!queue.length) return -1;
+  if (auto && S.repeat === "one") return qi;
+  if (S.shuffle && queue.length > 1) { let k; do k = Math.floor(Math.random() * queue.length); while (k === qi); return k; }
+  let k = qi + dir;
+  if (k >= queue.length) return S.repeat === "all" ? 0 : -1;
+  if (k < 0) return S.repeat === "all" ? queue.length - 1 : 0;
+  return k;
+}
+function togglePlay() {
+  if (!hasSrc(audio)) { if (queue.length) playIndex(qi >= 0 ? qi : 0); else toast("Hàng đợi trống – hãy tìm và chọn bài"); return; }
+  initAudio(); if (audio === elA && ctx.state !== "running") ctx.resume().catch(() => {});
+  audio.paused ? audio.play().catch(e => toast(e.message)) : audio.pause();
+}
+// Listen on both elements but only react to the active one.
+const onMedia = (evt, fn) => [elA, elB].forEach(el => el.addEventListener(evt, e => { if (e.target === audio && hasSrc(audio)) fn(e); }));
+$("#play").onclick = togglePlay;
+$("#next").onclick = () => { const k = nextIndex(1); if (k >= 0) playIndex(k); };
+$("#prev").onclick = () => { if (audio.currentTime > 4) { audio.currentTime = 0; return; } const k = nextIndex(-1); if (k >= 0) playIndex(k); };
+$("#back10").onclick = () => audio.currentTime = Math.max(0, audio.currentTime - 10);
+$("#fwd10").onclick = () => audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 10);
+onMedia("play", syncPlayBtn);
+onMedia("pause", syncPlayBtn);
+onMedia("ended", () => { const k = nextIndex(1, true); if (k >= 0) playIndex(k); });
+onMedia("waiting", () => $("#buf").innerHTML = '<span class="spin"></span> Đang đệm…');
+onMedia("playing", () => { $("#buf").textContent = ""; syncPlayBtn(); });
+onMedia("error", () => { toast("Lỗi phát file (" + (audio.error?.message || audio.error?.code) + "). Chuyển bài…", 3500); $("#buf").textContent = ""; setTimeout(() => { const k = nextIndex(1, true); if (k >= 0 && k !== qi) playIndex(k); }, 1500); });
+let seeking = false;
+$("#seek").addEventListener("input", () => { seeking = true; $("#cur").textContent = fmtTime($("#seek").value / 1000 * (audio.duration || 0)); });
+$("#seek").addEventListener("change", () => { if (audio.duration) audio.currentTime = $("#seek").value / 1000 * audio.duration; seeking = false; });
+onMedia("timeupdate", () => {
+  const d = audio.duration || curTrack?.length || 0;
+  if (!seeking) { $("#seek").value = d ? audio.currentTime / d * 1000 : 0; $("#cur").textContent = fmtTime(audio.currentTime); }
+  $("#dur").textContent = fmtTime(d);
+  if ("mediaSession" in navigator && navigator.mediaSession.setPositionState && isFinite(audio.duration)) {
+    try { navigator.mediaSession.setPositionState({ duration: audio.duration, position: Math.min(audio.currentTime, audio.duration), playbackRate: 1 }); } catch {}
+  }
+});
+$("#vol").oninput = e => { S.volume = +e.target.value; S.muted = false; save(); syncUI(); applyAll(); };
+$("#mute").onclick = () => { S.muted = !S.muted; save(); syncUI(); applyAll(); };
+if ("mediaSession" in navigator) {
+  const ms = (a, f) => { try { navigator.mediaSession.setActionHandler(a, f); } catch {} };
+  ms("play", togglePlay); ms("pause", togglePlay);
+  ms("nexttrack", () => $("#next").click()); ms("previoustrack", () => $("#prev").click());
+  ms("seekbackward", () => $("#back10").click()); ms("seekforward", () => $("#fwd10").click());
+  ms("seekto", d => { if (d.seekTime != null) audio.currentTime = d.seekTime; });
+}
+document.addEventListener("keydown", e => {
+  if (e.target.matches("input[type=text],select")) return;
+  if (e.code === "Space") { e.preventDefault(); togglePlay(); }
+  else if (e.key === "b" || e.key === "B") toggleBypass();
+  else if (e.key === "ArrowRight") $("#fwd10").click();
+  else if (e.key === "ArrowLeft") $("#back10").click();
+});
+
+/* ================= Boot ================= */
+audio = desiredEl();
+buildEQ(); syncUI(); renderQueue();
+if (qi >= 0 && queue[qi]) { const t = queue[qi]; $("#nowTitle").textContent = t.title; $("#nowSub").textContent = `${t.artist} — ${t.album}`; $("#nowArt").src = artUrl(t.id); showFmt(t, null); }
+detectMode();
+</script>
+</body>
+</html>
